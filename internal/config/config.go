@@ -13,8 +13,6 @@ type Config struct {
 	Environment        string
 	Port               string
 	APIKey             string
-	LinkedInLIAT       string
-	LinkedInJSESSIONID string
 	LinkedInDecoration string
 	CacheTTL           time.Duration
 	CacheMaxEntries    int
@@ -32,8 +30,6 @@ func Load() (Config, error) {
 		Environment:        env("APP_ENV", "development"),
 		Port:               env("PORT", "8080"),
 		APIKey:             strings.TrimSpace(os.Getenv("APP_API_KEY")),
-		LinkedInLIAT:       strings.TrimSpace(os.Getenv("LINKEDIN_LI_AT")),
-		LinkedInJSESSIONID: strings.TrimSpace(os.Getenv("LINKEDIN_JSESSIONID")),
 		LinkedInDecoration: env("LINKEDIN_DECORATION_ID", "com.linkedin.voyager.dash.deco.identity.profile.FullProfileWithEntities-93"),
 	}
 
@@ -76,11 +72,8 @@ func (c Config) validate() error {
 	if c.Port == "" {
 		return errors.New("PORT cannot be empty")
 	}
-	if c.LinkedInLIAT == "" {
-		return errors.New("LINKEDIN_LI_AT is required")
-	}
-	if strings.ContainsAny(c.LinkedInLIAT+c.LinkedInJSESSIONID+c.LinkedInDecoration, "\r\n") {
-		return errors.New("LinkedIn session values contain invalid characters")
+	if strings.ContainsAny(c.LinkedInDecoration, "\r\n") {
+		return errors.New("LINKEDIN_DECORATION_ID contains invalid characters")
 	}
 	if c.Environment == "production" && c.APIKey == "" {
 		return errors.New("APP_API_KEY is required when APP_ENV=production")

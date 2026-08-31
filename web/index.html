@@ -13,14 +13,22 @@
       <header class="hero">
         <p class="eyebrow">Backend engineering challenge</p>
         <h1>LinkedIn Profile API</h1>
-        <p class="intro">Enter a public LinkedIn profile URL to retrieve the information visible to the configured backend session.</p>
+        <p class="intro">Use your own LinkedIn browser session to retrieve the profile information visible to your account.</p>
       </header>
 
       <section class="panel">
-        <form id="profile-form">
+        <form id="profile-form" method="post" action="/api/v1/profiles">
           <label for="profile-url">LinkedIn profile URL</label>
           <input id="profile-url" name="url" type="url" required
             placeholder="https://www.linkedin.com/in/example" autocomplete="url">
+
+          <label for="li-at">LinkedIn <code>li_at</code> session cookie</label>
+          <input id="li-at" name="liAt" type="password" required
+            placeholder="Paste the li_at cookie value" autocomplete="off">
+
+          <label for="jsession-id">LinkedIn <code>JSESSIONID</code> cookie</label>
+          <input id="jsession-id" name="jsessionId" type="password"
+            placeholder="Usually starts with ajax:" autocomplete="off">
 
           <label for="api-key">Evaluator API key</label>
           <input id="api-key" name="apiKey" type="password"
@@ -28,6 +36,7 @@
 
           <button id="submit-button" type="submit">Fetch profile</button>
         </form>
+        <p class="muted session-note">Session cookies are sent only to this API for the current request and are never returned or written to logs.</p>
         <p id="status" class="status" role="status" aria-live="polite"></p>
       </section>
 

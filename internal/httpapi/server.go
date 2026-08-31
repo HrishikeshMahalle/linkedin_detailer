@@ -17,10 +17,10 @@ import (
 	frontend "github.com/tradelab/linkedin-profile-api/web"
 )
 
-const maxRequestBody = 4 << 10
+const maxRequestBody = 16 << 10
 
 type ProfileGetter interface {
-	Get(context.Context, string) (profile.Result, error)
+	Get(context.Context, string, service.Session) (profile.Result, error)
 }
 
 type Options struct {
@@ -64,7 +64,11 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var request struct {
-		URL string `json:"url"`
+		URL     string `json:"url"`
+		Session struct {
+			LIAT       string `json:"li_at"`
+			JSESSIONID string `json:"jsession_id"`
+		} `json:"linkedin_session"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -81,7 +85,10 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.profiles.Get(r.Context(), request.URL)
+	result, err := s.profiles.Get(r.Context(), request.URL, service.Session{
+		LIAT:       request.Session.LIAT,
+		JSESSIONID: request.Session.JSESSIONID,
+	})
 	if err != nil {
 		s.writeServiceError(w, r, err)
 		return
@@ -110,6 +117,8 @@ func (s *Server) writeServiceError(w http.ResponseWriter, r *http.Request, err e
 	switch {
 	case errors.Is(err, service.ErrInvalidURL):
 		writeError(w, http.StatusBadRequest, "invalid_profile_url", err.Error(), requestID)
+	case errors.Is(err, service.ErrInvalidSession):
+		writeError(w, http.StatusBadRequest, "invalid_linkedin_session", err.Error(), requestID)
 	case errors.Is(err, service.ErrBusy):
 		w.Header().Set("Retry-After", "10")
 		writeError(w, http.StatusTooManyRequests, "at_capacity", "The profile service is busy. Try again shortly.", requestID)

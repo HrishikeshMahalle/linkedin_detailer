@@ -94,6 +94,10 @@ label {
   font-weight: 700;
 }
 
+label code {
+  font-size: 0.82rem;
+}
+
 input {
   width: 100%;
   min-height: 48px;
@@ -140,6 +144,11 @@ button.secondary {
   min-height: 1.5rem;
   margin: 1rem 0 0;
   font-size: 0.92rem;
+}
+
+.session-note {
+  margin: 1rem 0 0;
+  line-height: 1.45;
 }
 
 .status[data-state="error"] {

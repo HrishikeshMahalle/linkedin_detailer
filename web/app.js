@@ -19,6 +19,8 @@ form.addEventListener("submit", async (event) => {
 
   const url = document.querySelector("#profile-url").value.trim();
   const apiKey = document.querySelector("#api-key").value;
+  const liAt = document.querySelector("#li-at").value.trim();
+  const jsessionId = document.querySelector("#jsession-id").value.trim();
   const headers = { "Content-Type": "application/json" };
   if (apiKey) {
     headers["X-API-Key"] = apiKey;
@@ -28,7 +30,13 @@ form.addEventListener("submit", async (event) => {
     const response = await fetch("/api/v1/profiles", {
       method: "POST",
       headers,
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({
+        url,
+        linkedin_session: {
+          li_at: liAt,
+          jsession_id: jsessionId,
+        },
+      }),
     });
     const body = await response.json().catch(() => null);
     if (!response.ok) {

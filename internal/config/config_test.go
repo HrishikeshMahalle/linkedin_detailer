@@ -8,7 +8,6 @@ import (
 
 func TestLoadDefaults(t *testing.T) {
 	clearConfigEnv(t)
-	t.Setenv("LINKEDIN_LI_AT", "session")
 
 	cfg, err := Load()
 	if err != nil {
@@ -22,7 +21,6 @@ func TestLoadDefaults(t *testing.T) {
 func TestLoadRequiresProductionAPIKey(t *testing.T) {
 	clearConfigEnv(t)
 	t.Setenv("APP_ENV", "production")
-	t.Setenv("LINKEDIN_LI_AT", "session")
 
 	_, err := Load()
 	if err == nil || !strings.Contains(err.Error(), "APP_API_KEY") {
@@ -30,16 +28,8 @@ func TestLoadRequiresProductionAPIKey(t *testing.T) {
 	}
 }
 
-func TestLoadRejectsMissingLinkedInSession(t *testing.T) {
-	clearConfigEnv(t)
-	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "LINKEDIN_LI_AT") {
-		t.Fatalf("Load() error = %v, want LINKEDIN_LI_AT error", err)
-	}
-}
-
 func TestLoadRejectsInvalidValues(t *testing.T) {
 	clearConfigEnv(t)
-	t.Setenv("LINKEDIN_LI_AT", "session")
 	t.Setenv("CACHE_TTL", "tomorrow")
 
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CACHE_TTL") {
@@ -53,8 +43,6 @@ func clearConfigEnv(t *testing.T) {
 		"APP_ENV",
 		"PORT",
 		"APP_API_KEY",
-		"LINKEDIN_LI_AT",
-		"LINKEDIN_JSESSIONID",
 		"LINKEDIN_DECORATION_ID",
 		"CACHE_TTL",
 		"CACHE_MAX_ENTRIES",

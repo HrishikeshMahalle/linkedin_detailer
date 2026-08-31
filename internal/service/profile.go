@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net"
@@ -19,41 +20,61 @@ import (
 var publicIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{1,99}$`)
 
 var (
-	ErrInvalidURL = errors.New("invalid LinkedIn profile URL")
-	ErrBusy       = errors.New("profile service is at capacity")
+	ErrInvalidURL     = errors.New("invalid LinkedIn profile URL")
+	ErrInvalidSession = errors.New("invalid LinkedIn session")
+	ErrBusy           = errors.New("profile service is at capacity")
 )
 
 type Fetcher interface {
 	FetchProfile(context.Context, string) (profile.Profile, []string, error)
 }
 
+type FetcherFactory interface {
+	NewFetcher(Session) (Fetcher, error)
+}
+
+type FetcherFactoryFunc func(Session) (Fetcher, error)
+
+func (f FetcherFactoryFunc) NewFetcher(session Session) (Fetcher, error) {
+	return f(session)
+}
+
+type Session struct {
+	LIAT       string
+	JSESSIONID string
+}
+
 type ProfileService struct {
-	fetcher   Fetcher
+	factory   FetcherFactory
 	cache     *ttlCache
 	group     singleflight.Group
 	semaphore chan struct{}
 }
 
-func NewProfileService(fetcher Fetcher, cacheTTL time.Duration, cacheMaxEntries, maxConcurrent int) *ProfileService {
+func NewProfileService(factory FetcherFactory, cacheTTL time.Duration, cacheMaxEntries, maxConcurrent int) *ProfileService {
 	return &ProfileService{
-		fetcher:   fetcher,
+		factory:   factory,
 		cache:     newTTLCache(cacheTTL, cacheMaxEntries),
 		semaphore: make(chan struct{}, maxConcurrent),
 	}
 }
 
-func (s *ProfileService) Get(ctx context.Context, rawURL string) (profile.Result, error) {
+func (s *ProfileService) Get(ctx context.Context, rawURL string, session Session) (profile.Result, error) {
 	publicIdentifier, err := ParseProfileURL(rawURL)
 	if err != nil {
 		return profile.Result{}, err
 	}
-	if cached, ok := s.cache.get(publicIdentifier); ok {
+	if err := validateSession(session); err != nil {
+		return profile.Result{}, err
+	}
+	cacheKey := sessionCacheKey(session, publicIdentifier)
+	if cached, ok := s.cache.get(cacheKey); ok {
 		cached.Meta.CacheHit = true
 		return cached, nil
 	}
 
-	resultCh := s.group.DoChan(publicIdentifier, func() (any, error) {
-		if cached, ok := s.cache.get(publicIdentifier); ok {
+	resultCh := s.group.DoChan(cacheKey, func() (any, error) {
+		if cached, ok := s.cache.get(cacheKey); ok {
 			cached.Meta.CacheHit = true
 			return cached, nil
 		}
@@ -64,7 +85,11 @@ func (s *ProfileService) Get(ctx context.Context, rawURL string) (profile.Result
 			return profile.Result{}, ErrBusy
 		}
 
-		fetched, warnings, fetchErr := s.fetcher.FetchProfile(ctx, publicIdentifier)
+		fetcher, factoryErr := s.factory.NewFetcher(session)
+		if factoryErr != nil {
+			return profile.Result{}, fmt.Errorf("%w: could not initialize session", ErrInvalidSession)
+		}
+		fetched, warnings, fetchErr := fetcher.FetchProfile(ctx, publicIdentifier)
 		if fetchErr != nil {
 			return profile.Result{}, fetchErr
 		}
@@ -79,7 +104,7 @@ func (s *ProfileService) Get(ctx context.Context, rawURL string) (profile.Result
 				Warnings:  warnings,
 			},
 		}
-		s.cache.set(publicIdentifier, result)
+		s.cache.set(cacheKey, result)
 		return result, nil
 	})
 	select {
@@ -91,6 +116,26 @@ func (s *ProfileService) Get(ctx context.Context, rawURL string) (profile.Result
 	case <-ctx.Done():
 		return profile.Result{}, ctx.Err()
 	}
+}
+
+func validateSession(session Session) error {
+	liAt := strings.TrimSpace(session.LIAT)
+	jsessionID := strings.TrimSpace(session.JSESSIONID)
+	if liAt == "" {
+		return fmt.Errorf("%w: li_at is required", ErrInvalidSession)
+	}
+	if len(liAt) > 4096 || len(jsessionID) > 1024 {
+		return fmt.Errorf("%w: cookie value is too long", ErrInvalidSession)
+	}
+	if strings.ContainsAny(liAt+jsessionID, "\r\n") {
+		return fmt.Errorf("%w: cookie contains invalid characters", ErrInvalidSession)
+	}
+	return nil
+}
+
+func sessionCacheKey(session Session, publicIdentifier string) string {
+	fingerprint := sha256.Sum256([]byte(strings.TrimSpace(session.LIAT)))
+	return fmt.Sprintf("%x:%s", fingerprint, publicIdentifier)
 }
 
 func ParseProfileURL(raw string) (string, error) {

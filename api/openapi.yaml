@@ -26,12 +26,24 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [url]
+              required: [url, linkedin_session]
               properties:
                 url:
                   type: string
                   format: uri
                   example: https://www.linkedin.com/in/example
+                linkedin_session:
+                  type: object
+                  additionalProperties: false
+                  required: [li_at]
+                  description: Used only for this request and never included in the response.
+                  properties:
+                    li_at:
+                      type: string
+                      writeOnly: true
+                    jsession_id:
+                      type: string
+                      writeOnly: true
       responses:
         "200":
           description: Structured LinkedIn profile

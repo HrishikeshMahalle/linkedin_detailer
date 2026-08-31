@@ -18,17 +18,20 @@ import (
 	"github.com/tradelab/linkedin-profile-api/internal/service"
 )
 
-type profileGetFunc func(context.Context, string) (profile.Result, error)
+type profileGetFunc func(context.Context, string, service.Session) (profile.Result, error)
 
-func (f profileGetFunc) Get(ctx context.Context, url string) (profile.Result, error) {
-	return f(ctx, url)
+func (f profileGetFunc) Get(ctx context.Context, url string, session service.Session) (profile.Result, error) {
+	return f(ctx, url, session)
 }
 
 func TestProfileEndpoint(t *testing.T) {
 	t.Parallel()
-	getter := profileGetFunc(func(_ context.Context, url string) (profile.Result, error) {
+	getter := profileGetFunc(func(_ context.Context, url string, session service.Session) (profile.Result, error) {
 		if url != "https://linkedin.com/in/ada-example" {
 			t.Errorf("Get() URL = %q", url)
+		}
+		if session.LIAT != "session-value" || session.JSESSIONID != "ajax:123" {
+			t.Errorf("Get() session was not forwarded")
 		}
 		return profile.Result{
 			SchemaVersion: profile.SchemaVersion,
@@ -38,7 +41,7 @@ func TestProfileEndpoint(t *testing.T) {
 	})
 	handler := testHandler(getter, "test-key", 60, 2)
 
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", strings.NewReader(`{"url":"https://linkedin.com/in/ada-example"}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", strings.NewReader(`{"url":"https://linkedin.com/in/ada-example","linkedin_session":{"li_at":"session-value","jsession_id":"ajax:123"}}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-API-Key", "test-key")
 	response := httptest.NewRecorder()
@@ -46,6 +49,9 @@ func TestProfileEndpoint(t *testing.T) {
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "session-value") || strings.Contains(response.Body.String(), "ajax:123") {
+		t.Fatal("response leaked LinkedIn session values")
 	}
 	if response.Header().Get("X-Request-ID") == "" {
 		t.Error("X-Request-ID header is missing")
@@ -64,7 +70,7 @@ func TestProfileEndpoint(t *testing.T) {
 
 func TestProfileEndpointRequiresAPIKey(t *testing.T) {
 	t.Parallel()
-	handler := testHandler(profileGetFunc(func(context.Context, string) (profile.Result, error) {
+	handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 		t.Fatal("profile getter must not be called")
 		return profile.Result{}, nil
 	}), "test-key", 60, 2)
@@ -80,7 +86,7 @@ func TestProfileEndpointRequiresAPIKey(t *testing.T) {
 
 func TestProfileEndpointRejectsInvalidBody(t *testing.T) {
 	t.Parallel()
-	handler := testHandler(profileGetFunc(func(context.Context, string) (profile.Result, error) {
+	handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 		t.Fatal("profile getter must not be called")
 		return profile.Result{}, nil
 	}), "", 60, 10)
@@ -107,6 +113,7 @@ func TestProfileEndpointMapsErrors(t *testing.T) {
 		status int
 	}{
 		{name: "invalid URL", err: service.ErrInvalidURL, status: http.StatusBadRequest},
+		{name: "invalid session", err: service.ErrInvalidSession, status: http.StatusBadRequest},
 		{name: "busy", err: service.ErrBusy, status: http.StatusTooManyRequests},
 		{name: "not found", err: &linkedin.Error{Kind: linkedin.ErrNotFound, Message: "missing"}, status: http.StatusNotFound},
 		{name: "session", err: &linkedin.Error{Kind: linkedin.ErrAuthentication, Message: "expired"}, status: http.StatusServiceUnavailable},
@@ -117,10 +124,10 @@ func TestProfileEndpointMapsErrors(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			handler := testHandler(profileGetFunc(func(context.Context, string) (profile.Result, error) {
+			handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 				return profile.Result{}, test.err
 			}), "", 60, 2)
-			request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", strings.NewReader(`{"url":"https://linkedin.com/in/ada-example"}`))
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", strings.NewReader(`{"url":"https://linkedin.com/in/ada-example","linkedin_session":{"li_at":"session-value"}}`))
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)
 			if response.Code != test.status {
@@ -132,11 +139,11 @@ func TestProfileEndpointMapsErrors(t *testing.T) {
 
 func TestProfileEndpointRateLimit(t *testing.T) {
 	t.Parallel()
-	handler := testHandler(profileGetFunc(func(context.Context, string) (profile.Result, error) {
+	handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 		return profile.Result{Meta: profile.Meta{Warnings: []string{}}}, nil
 	}), "", 1, 1)
 
-	body := []byte(`{"url":"https://linkedin.com/in/ada-example"}`)
+	body := []byte(`{"url":"https://linkedin.com/in/ada-example","linkedin_session":{"li_at":"session-value"}}`)
 	first := httptest.NewRecorder()
 	handler.ServeHTTP(first, requestWithBody(body))
 	if first.Code != http.StatusOK {
@@ -154,7 +161,7 @@ func TestProfileEndpointRateLimit(t *testing.T) {
 
 func TestPublicRoutes(t *testing.T) {
 	t.Parallel()
-	handler := testHandler(profileGetFunc(func(context.Context, string) (profile.Result, error) {
+	handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 		return profile.Result{}, errors.New("not called")
 	}), "test-key", 60, 2)
 

@@ -24,20 +24,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	linkedInClient, err := linkedin.NewClient(linkedin.Options{
-		LIAT:       cfg.LinkedInLIAT,
-		JSESSIONID: cfg.LinkedInJSESSIONID,
-		Decoration: cfg.LinkedInDecoration,
-		HTTPClient: &http.Client{Timeout: cfg.UpstreamTimeout},
-		Interval:   cfg.LinkedInInterval,
-		Cooldown:   cfg.Cooldown,
+	factory := service.FetcherFactoryFunc(func(session service.Session) (service.Fetcher, error) {
+		return linkedin.NewClient(linkedin.Options{
+			LIAT:       session.LIAT,
+			JSESSIONID: session.JSESSIONID,
+			Decoration: cfg.LinkedInDecoration,
+			HTTPClient: &http.Client{Timeout: cfg.UpstreamTimeout},
+			Interval:   cfg.LinkedInInterval,
+			Cooldown:   cfg.Cooldown,
+		})
 	})
-	if err != nil {
-		logger.Error("could not create LinkedIn client", "error", err)
-		os.Exit(1)
-	}
 	profileService := service.NewProfileService(
-		linkedInClient,
+		factory,
 		cfg.CacheTTL,
 		cfg.CacheMaxEntries,
 		cfg.MaxConcurrent,

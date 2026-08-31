@@ -17,6 +17,14 @@ func (f fetchFunc) FetchProfile(ctx context.Context, identifier string) (profile
 	return f(ctx, identifier)
 }
 
+var testSession = Session{LIAT: "session-one", JSESSIONID: "ajax:one"}
+
+func testFactory(fetcher Fetcher) FetcherFactory {
+	return FetcherFactoryFunc(func(Session) (Fetcher, error) {
+		return fetcher, nil
+	})
+}
+
 func TestParseProfileURL(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -74,13 +82,13 @@ func TestProfileServiceCachesResults(t *testing.T) {
 		calls.Add(1)
 		return profile.Profile{PublicIdentifier: identifier}, nil, nil
 	})
-	service := NewProfileService(fetcher, time.Minute, 10, 1)
+	service := NewProfileService(testFactory(fetcher), time.Minute, 10, 1)
 
-	first, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example")
+	first, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example", testSession)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := service.Get(context.Background(), "https://www.linkedin.com/in/ada-example?trk=test")
+	second, err := service.Get(context.Background(), "https://www.linkedin.com/in/ada-example?trk=test", testSession)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +111,7 @@ func TestProfileServiceCoalescesDuplicateRequests(t *testing.T) {
 		time.Sleep(30 * time.Millisecond)
 		return profile.Profile{PublicIdentifier: identifier}, nil, nil
 	})
-	service := NewProfileService(fetcher, time.Minute, 10, 1)
+	service := NewProfileService(testFactory(fetcher), time.Minute, 10, 1)
 
 	const count = 8
 	start := make(chan struct{})
@@ -114,7 +122,7 @@ func TestProfileServiceCoalescesDuplicateRequests(t *testing.T) {
 		go func() {
 			defer wait.Done()
 			<-start
-			_, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example")
+			_, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example", testSession)
 			errs <- err
 		}()
 	}
@@ -142,16 +150,16 @@ func TestProfileServiceRejectsExcessConcurrency(t *testing.T) {
 		}
 		return profile.Profile{PublicIdentifier: identifier}, nil, nil
 	})
-	service := NewProfileService(fetcher, time.Minute, 10, 1)
+	service := NewProfileService(testFactory(fetcher), time.Minute, 10, 1)
 
 	firstDone := make(chan error, 1)
 	go func() {
-		_, err := service.Get(context.Background(), "https://linkedin.com/in/first-profile")
+		_, err := service.Get(context.Background(), "https://linkedin.com/in/first-profile", testSession)
 		firstDone <- err
 	}()
 	<-started
 
-	_, err := service.Get(context.Background(), "https://linkedin.com/in/second-profile")
+	_, err := service.Get(context.Background(), "https://linkedin.com/in/second-profile", testSession)
 	if !errors.Is(err, ErrBusy) {
 		t.Errorf("Get() error = %v, want ErrBusy", err)
 	}
@@ -166,13 +174,58 @@ func TestProfileServiceMarksWarningsPartial(t *testing.T) {
 	fetcher := fetchFunc(func(_ context.Context, identifier string) (profile.Profile, []string, error) {
 		return profile.Profile{PublicIdentifier: identifier}, []string{"skills unavailable"}, nil
 	})
-	service := NewProfileService(fetcher, time.Minute, 10, 1)
+	service := NewProfileService(testFactory(fetcher), time.Minute, 10, 1)
 
-	result, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example")
+	result, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example", testSession)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !result.Meta.Partial || len(result.Meta.Warnings) != 1 {
 		t.Errorf("Meta = %#v, want partial result", result.Meta)
+	}
+}
+
+func TestProfileServiceRequiresSession(t *testing.T) {
+	t.Parallel()
+	service := NewProfileService(testFactory(fetchFunc(func(context.Context, string) (profile.Profile, []string, error) {
+		t.Fatal("fetcher must not be called")
+		return profile.Profile{}, nil, nil
+	})), time.Minute, 10, 1)
+
+	_, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example", Session{})
+	if !errors.Is(err, ErrInvalidSession) {
+		t.Fatalf("Get() error = %v, want ErrInvalidSession", err)
+	}
+}
+
+func TestProfileServiceIsolatesSessions(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	factory := FetcherFactoryFunc(func(session Session) (Fetcher, error) {
+		return fetchFunc(func(_ context.Context, identifier string) (profile.Profile, []string, error) {
+			calls.Add(1)
+			return profile.Profile{PublicIdentifier: identifier, Headline: session.LIAT}, nil, nil
+		}), nil
+	})
+	service := NewProfileService(factory, time.Minute, 10, 1)
+
+	first, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example", Session{LIAT: "session-one"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example", Session{LIAT: "session-two"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstCached, err := service.Get(context.Background(), "https://linkedin.com/in/ada-example", Session{LIAT: "session-one"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first.Profile.Headline != "session-one" || second.Profile.Headline != "session-two" {
+		t.Fatal("profile data crossed session boundaries")
+	}
+	if !firstCached.Meta.CacheHit || calls.Load() != 2 {
+		t.Errorf("cache isolation failed: cache_hit=%v calls=%d", firstCached.Meta.CacheHit, calls.Load())
 	}
 }
