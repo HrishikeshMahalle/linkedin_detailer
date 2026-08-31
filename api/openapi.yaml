@@ -1,0 +1,286 @@
+openapi: 3.1.0
+info:
+  title: LinkedIn Profile API
+  version: 1.0.0
+  description: >
+    Returns profile information visible to the LinkedIn account configured on
+    the server. This API uses an undocumented upstream and may return partial data.
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      summary: Check service health
+      responses:
+        "200":
+          description: Service is running
+  /api/v1/profiles:
+    post:
+      summary: Fetch a LinkedIn profile
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  example: https://www.linkedin.com/in/example
+      responses:
+        "200":
+          description: Structured LinkedIn profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
+        "502":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+        "504":
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  responses:
+    Error:
+      description: Request failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    ProfileResult:
+      type: object
+      required: [schema_version, profile, meta]
+      properties:
+        schema_version:
+          type: string
+          example: "1.0"
+        profile:
+          $ref: "#/components/schemas/Profile"
+        meta:
+          $ref: "#/components/schemas/Meta"
+    Profile:
+      type: object
+      required:
+        - public_identifier
+        - profile_url
+        - profile_images
+        - experience
+        - education
+        - skills
+        - certifications
+        - languages
+      properties:
+        public_identifier:
+          type: string
+        profile_url:
+          type: string
+          format: uri
+        first_name:
+          type: string
+        last_name:
+          type: string
+        full_name:
+          type: string
+        headline:
+          type: string
+        location:
+          type: string
+        about:
+          type: string
+        profile_images:
+          type: array
+          items:
+            $ref: "#/components/schemas/Image"
+        experience:
+          type: array
+          items:
+            $ref: "#/components/schemas/Experience"
+        education:
+          type: array
+          items:
+            $ref: "#/components/schemas/Education"
+        skills:
+          type: array
+          items:
+            $ref: "#/components/schemas/Skill"
+        certifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Certification"
+        languages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Language"
+    Image:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+        width:
+          type: integer
+        height:
+          type: integer
+    PartialDate:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+    DateRange:
+      type: object
+      required: [is_current]
+      properties:
+        start:
+          $ref: "#/components/schemas/PartialDate"
+        end:
+          $ref: "#/components/schemas/PartialDate"
+        is_current:
+          type: boolean
+    Position:
+      type: object
+      required: [date_range]
+      properties:
+        title:
+          type: string
+        employment_type:
+          type: string
+        location:
+          type: string
+        description:
+          type: string
+        date_range:
+          $ref: "#/components/schemas/DateRange"
+    Experience:
+      type: object
+      required: [positions]
+      properties:
+        company_id:
+          type: string
+        company_name:
+          type: string
+        company_url:
+          type: string
+          format: uri
+        logo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Image"
+        positions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Position"
+    Education:
+      type: object
+      required: [date_range]
+      properties:
+        school_id:
+          type: string
+        school_name:
+          type: string
+        school_url:
+          type: string
+          format: uri
+        degree_name:
+          type: string
+        field_of_study:
+          type: string
+        grade:
+          type: string
+        description:
+          type: string
+        date_range:
+          $ref: "#/components/schemas/DateRange"
+        logo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Image"
+    Skill:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        endorsements:
+          type: integer
+    Certification:
+      type: object
+      properties:
+        name:
+          type: string
+        issuing_organization:
+          type: string
+        issue_date:
+          $ref: "#/components/schemas/PartialDate"
+        expiration_date:
+          $ref: "#/components/schemas/PartialDate"
+        credential_id:
+          type: string
+        credential_url:
+          type: string
+          format: uri
+    Language:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        proficiency:
+          type: string
+    Meta:
+      type: object
+      required: [request_id, fetched_at, cache_hit, partial, warnings]
+      properties:
+        request_id:
+          type: string
+        fetched_at:
+          type: string
+          format: date-time
+        cache_hit:
+          type: boolean
+        partial:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            request_id:
+              type: string

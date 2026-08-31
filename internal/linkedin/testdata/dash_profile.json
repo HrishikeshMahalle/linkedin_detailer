@@ -1,0 +1,109 @@
+{
+  "data": {
+    "*elements": ["urn:li:fsd_profile:ada"]
+  },
+  "included": [
+    {
+      "entityUrn": "urn:li:fsd_profile:ada",
+      "$type": "com.linkedin.voyager.dash.identity.profile.Profile",
+      "publicIdentifier": "ada-example",
+      "multiLocaleFirstName": {"en_US": "Ada"},
+      "multiLocaleLastName": {"en_US": "Example"},
+      "multiLocaleHeadline": {"en_US": "Distributed Systems Engineer"},
+      "multiLocaleSummary": {"en_US": "Builds reliable systems."},
+      "multiLocaleAddress": {"en_US": "London, United Kingdom"},
+      "*profilePositionGroups": "urn:li:collection:positions",
+      "*profileEducations": "urn:li:collection:educations",
+      "*profileSkills": "urn:li:collection:skills",
+      "*profileCertifications": "urn:li:collection:certifications",
+      "*profileLanguages": "urn:li:collection:languages",
+      "profilePicture": {
+        "displayImageReference": {
+          "vectorImage": {
+            "rootUrl": "https://media.licdn.com/dms/image/",
+            "artifacts": [
+              {
+                "width": 400,
+                "height": 400,
+                "fileIdentifyingUrlPathSegment": "dash-profile"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "entityUrn": "urn:li:collection:positions",
+      "*elements": ["urn:li:fsd_profilePositionGroup:42"]
+    },
+    {
+      "entityUrn": "urn:li:fsd_profilePositionGroup:42",
+      "$type": "com.linkedin.voyager.dash.identity.profile.PositionGroup",
+      "companyUrn": "urn:li:fsd_company:42",
+      "multiLocaleCompanyName": {"en_US": "Example Labs"},
+      "profilePositionInPositionGroup": {
+        "*elements": ["urn:li:fsd_profilePosition:100"]
+      }
+    },
+    {
+      "entityUrn": "urn:li:fsd_profilePosition:100",
+      "$type": "com.linkedin.voyager.dash.identity.profile.Position",
+      "multiLocaleTitle": {"en_US": "Senior Engineer"},
+      "multiLocaleDescription": {"en_US": "Led reliability work."},
+      "multiLocaleLocationName": {"en_US": "London"},
+      "dateRange": {
+        "start": {"month": 2, "year": 2023}
+      }
+    },
+    {
+      "entityUrn": "urn:li:collection:educations",
+      "*elements": ["urn:li:fsd_profileEducation:7"]
+    },
+    {
+      "entityUrn": "urn:li:fsd_profileEducation:7",
+      "$type": "com.linkedin.voyager.dash.identity.profile.Education",
+      "schoolUrn": "urn:li:fsd_school:7",
+      "multiLocaleSchoolName": {"en_US": "Example University"},
+      "multiLocaleDegreeName": {"en_US": "BSc"},
+      "multiLocaleFieldOfStudy": {"en_US": "Computer Science"},
+      "dateRange": {
+        "start": {"year": 2016},
+        "end": {"year": 2020}
+      }
+    },
+    {
+      "entityUrn": "urn:li:collection:skills",
+      "*elements": ["urn:li:fsd_profileSkill:1"]
+    },
+    {
+      "entityUrn": "urn:li:fsd_profileSkill:1",
+      "$type": "com.linkedin.voyager.dash.identity.profile.Skill",
+      "multiLocaleName": {"en_US": "Go"}
+    },
+    {
+      "entityUrn": "urn:li:collection:certifications",
+      "*elements": ["urn:li:fsd_profileCertification:1"]
+    },
+    {
+      "entityUrn": "urn:li:fsd_profileCertification:1",
+      "$type": "com.linkedin.voyager.dash.identity.profile.Certification",
+      "multiLocaleName": {"en_US": "Cloud Engineer"},
+      "multiLocaleAuthority": {"en_US": "Example Cloud"},
+      "credentialId": "CERT-123",
+      "credentialUrl": "https://certs.example.test/CERT-123",
+      "dateRange": {
+        "start": {"month": 4, "year": 2024}
+      }
+    },
+    {
+      "entityUrn": "urn:li:collection:languages",
+      "*elements": ["urn:li:fsd_profileLanguage:1"]
+    },
+    {
+      "entityUrn": "urn:li:fsd_profileLanguage:1",
+      "$type": "com.linkedin.voyager.dash.identity.profile.Language",
+      "multiLocaleName": {"en_US": "English"},
+      "proficiency": "NATIVE_OR_BILINGUAL"
+    }
+  ]
+}

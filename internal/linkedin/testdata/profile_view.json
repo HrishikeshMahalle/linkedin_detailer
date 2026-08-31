@@ -1,0 +1,90 @@
+{
+  "profile": {
+    "firstName": "Ada",
+    "lastName": "Example",
+    "headline": "Distributed Systems Engineer",
+    "geoLocationName": "London, United Kingdom",
+    "summary": "Builds reliable systems.",
+    "miniProfile": {
+      "picture": {
+        "com.linkedin.common.VectorImage": {
+          "rootUrl": "https://media.licdn.com/dms/image/",
+          "artifacts": [
+            {
+              "width": 100,
+              "height": 100,
+              "fileIdentifyingUrlPathSegment": "profile-small"
+            },
+            {
+              "width": 400,
+              "height": 400,
+              "fileIdentifyingUrlPathSegment": "profile-large"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "positionView": {
+    "elements": [
+      {
+        "title": "Senior Engineer",
+        "companyName": "Example Labs",
+        "companyUrn": "urn:li:fs_miniCompany:42",
+        "employmentType": "Full-time",
+        "locationName": "London",
+        "description": "Led reliability work.",
+        "timePeriod": {
+          "startDate": {"month": 2, "year": 2023}
+        }
+      },
+      {
+        "title": "Engineer",
+        "companyName": "Example Labs",
+        "companyUrn": "urn:li:fs_miniCompany:42",
+        "timePeriod": {
+          "startDate": {"month": 6, "year": 2020},
+          "endDate": {"month": 1, "year": 2023}
+        }
+      }
+    ]
+  },
+  "educationView": {
+    "elements": [
+      {
+        "schoolName": "Example University",
+        "schoolUrn": "urn:li:fs_miniSchool:7",
+        "degreeName": "BSc",
+        "fieldOfStudy": "Computer Science",
+        "timePeriod": {
+          "startDate": {"year": 2016},
+          "endDate": {"year": 2020}
+        }
+      }
+    ]
+  },
+  "skillView": {
+    "elements": [
+      {"name": "Go", "endorsementCount": 12},
+      {"skill": {"name": "Distributed Systems"}}
+    ]
+  },
+  "certificationView": {
+    "elements": [
+      {
+        "name": "Cloud Engineer",
+        "authorityName": "Example Cloud",
+        "licenseNumber": "CERT-123",
+        "url": "https://certs.example.test/CERT-123",
+        "timePeriod": {
+          "startDate": {"month": 4, "year": 2024}
+        }
+      }
+    ]
+  },
+  "languageView": {
+    "elements": [
+      {"name": "English", "proficiency": "Native or bilingual proficiency"}
+    ]
+  }
+}

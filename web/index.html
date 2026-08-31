@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Fetch a LinkedIn profile as structured JSON.">
+    <title>LinkedIn Profile API</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">Backend engineering challenge</p>
+        <h1>LinkedIn Profile API</h1>
+        <p class="intro">Enter a public LinkedIn profile URL to retrieve the information visible to the configured backend session.</p>
+      </header>
+
+      <section class="panel">
+        <form id="profile-form">
+          <label for="profile-url">LinkedIn profile URL</label>
+          <input id="profile-url" name="url" type="url" required
+            placeholder="https://www.linkedin.com/in/example" autocomplete="url">
+
+          <label for="api-key">Evaluator API key</label>
+          <input id="api-key" name="apiKey" type="password"
+            placeholder="Required by the hosted API" autocomplete="off">
+
+          <button id="submit-button" type="submit">Fetch profile</button>
+        </form>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="profile-card" class="panel profile-card" hidden>
+        <div class="identity">
+          <img id="profile-image" alt="" referrerpolicy="no-referrer" hidden>
+          <div>
+            <h2 id="profile-name"></h2>
+            <p id="profile-headline"></p>
+            <p id="profile-location" class="muted"></p>
+          </div>
+        </div>
+        <div id="profile-sections"></div>
+      </section>
+
+      <section id="json-panel" class="panel" hidden>
+        <div class="section-heading">
+          <h2>JSON response</h2>
+          <button id="copy-button" class="secondary" type="button">Copy</button>
+        </div>
+        <pre id="json-output"></pre>
+      </section>
+
+      <footer>
+        <a href="/openapi.yaml">OpenAPI specification</a>
+        <span>Profile data is not persisted.</span>
+      </footer>
+    </main>
+  </body>
+</html>
