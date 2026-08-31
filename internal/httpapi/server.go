@@ -24,7 +24,6 @@ type ProfileGetter interface {
 }
 
 type Options struct {
-	APIKey         string
 	RateLimitRPM   int
 	RateLimitBurst int
 	RequestTimeout time.Duration
@@ -42,7 +41,6 @@ func NewHandler(profiles ProfileGetter, logger *slog.Logger, options Options) ht
 
 	limiter := newClientLimiter(options.RateLimitRPM, options.RateLimitBurst)
 	profileHandler := http.Handler(http.HandlerFunc(server.handleProfile))
-	profileHandler = requireAPIKey(options.APIKey, profileHandler)
 	profileHandler = limiter.middleware(profileHandler)
 	profileHandler = withTimeout(options.RequestTimeout, profileHandler)
 

@@ -41,7 +41,6 @@ func main() {
 		cfg.MaxConcurrent,
 	)
 	handler := httpapi.NewHandler(profileService, logger, httpapi.Options{
-		APIKey:         cfg.APIKey,
 		RateLimitRPM:   cfg.RateLimitRPM,
 		RateLimitBurst: cfg.RateLimitBurst,
 		RequestTimeout: cfg.RequestTimeout,

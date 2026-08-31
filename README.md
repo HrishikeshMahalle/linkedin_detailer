@@ -10,7 +10,7 @@ A backend-first Go service that accepts a LinkedIn profile URL plus the caller's
 - Experience with grouped company positions
 - Education, skills, certifications, and languages
 - Strict LinkedIn URL validation
-- API-key authentication and per-client token-bucket limiting
+- Per-client token-bucket limiting
 - Bounded concurrency and conservative LinkedIn request pacing
 - Session-isolated in-memory cache and duplicate-request coalescing
 - Partial-result metadata when LinkedIn omits a section
@@ -24,7 +24,7 @@ Browser / API client
         |
         v
 Go HTTP server
-  -> API key + URL/session validation + per-client limit
+  -> URL/session validation + per-client limit
   -> session-fingerprinted in-memory cache
   -> singleflight + concurrency semaphore
   -> rate-limited LinkedIn Voyager client
@@ -37,7 +37,6 @@ The service deliberately runs synchronously and stores neither profile data nor 
 
 - Go 1.25 or Docker
 - An authenticated LinkedIn session
-- A long random API key for the hosted endpoint
 
 ## LinkedIn session configuration
 
@@ -54,14 +53,13 @@ The backend uses the same general session-cookie approach used by LinkedIn autom
 
 ```bash
 cp .env.example .env
-# Edit .env with your private values.
 set -a
 source .env
 set +a
 go run ./cmd/server
 ```
 
-Open `http://localhost:8080`. Development mode permits an empty `APP_API_KEY`, but setting one locally is recommended. Production mode refuses to start without an API key.
+Open `http://localhost:8080`. LinkedIn session cookies are entered in the frontend and are not stored in `.env`.
 
 Run with Docker:
 
@@ -69,7 +67,6 @@ Run with Docker:
 docker build -t linkedin-profile-api .
 docker run --rm -p 8080:8080 \
   -e APP_ENV=production \
-  -e APP_API_KEY='replace-me' \
   linkedin-profile-api
 ```
 
@@ -82,7 +79,6 @@ docker run --rm -p 8080:8080 \
 ```bash
 curl --request POST 'http://localhost:8080/api/v1/profiles' \
   --header 'Content-Type: application/json' \
-  --header 'X-API-Key: replace-me' \
   --data '{
     "url":"https://www.linkedin.com/in/example",
     "linkedin_session":{
@@ -143,13 +139,12 @@ Errors have a stable envelope:
 }
 ```
 
-The API uses `400` for invalid input, `401` for the evaluator API key, `403/404` for inaccessible profiles, `429` for local admission limits, `502` for unsupported upstream responses, `503` for LinkedIn session/cooldown failures, and `504` for timeouts.
+The API uses `400` for invalid input, `403/404` for inaccessible profiles, `429` for local admission limits, `502` for unsupported upstream responses, `503` for LinkedIn session/cooldown failures, and `504` for timeouts.
 
 ## Configuration
 
 - `APP_ENV` (`development`): set to `production` on the hosted service.
 - `PORT` (`8080`): HTTP listen port; Render supplies this automatically.
-- `APP_API_KEY` (empty): client API key; required in production.
 - `LINKEDIN_DECORATION_ID` (`FullProfileWithEntities-93`): override when LinkedIn revises the Dash response decoration.
 - `CACHE_TTL` (`30m`): in-memory profile cache lifetime.
 - `CACHE_MAX_ENTRIES` (`200`): maximum cached profiles.
@@ -168,9 +163,8 @@ Duration values use Go syntax such as `500ms`, `15s`, or `30m`.
 1. Push this repository to GitHub.
 2. In Render, choose **New → Blueprint** and connect the repository.
 3. Render reads [`render.yaml`](render.yaml) and creates a free Docker web service.
-4. Enter a private `APP_API_KEY` when prompted.
-5. Wait for `/healthz` to pass. Render provides an HTTPS `*.onrender.com` URL automatically.
-6. Give evaluators the API URL and API key separately. Each caller provides their own LinkedIn session through the frontend.
+4. Wait for `/healthz` to pass. Render provides an HTTPS `*.onrender.com` URL automatically.
+5. Each caller provides their own LinkedIn session through the frontend; no LinkedIn secret is configured in Render.
 
 Render's free instance may sleep while idle, so the first request can have a cold start. Its filesystem is ephemeral, which is acceptable because this service keeps only an in-memory cache. A stable outbound IP is not guaranteed and LinkedIn may occasionally ask the account to authenticate again.
 

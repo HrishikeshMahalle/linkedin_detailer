@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/hex"
 	"log/slog"
 	"net"
@@ -69,20 +68,6 @@ func withTimeout(timeout time.Duration, next http.Handler) http.Handler {
 		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-func requireAPIKey(expected string, next http.Handler) http.Handler {
-	if expected == "" {
-		return next
-	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		provided := r.Header.Get("X-API-Key")
-		if len(provided) != len(expected) || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
-			writeError(w, http.StatusUnauthorized, "unauthorized", "A valid X-API-Key header is required.", requestIDFrom(r.Context()))
-			return
-		}
-		next.ServeHTTP(w, r)
 	})
 }
 

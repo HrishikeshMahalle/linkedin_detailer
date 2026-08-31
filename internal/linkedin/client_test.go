@@ -109,6 +109,37 @@ func TestClientClassifiesBlockingResponses(t *testing.T) {
 	}
 }
 
+func TestClientDoesNotFollowChallengeRedirect(t *testing.T) {
+	t.Parallel()
+	var requests int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.URL.Path != "/voyager/api/identity/dash/profiles" {
+			t.Errorf("client followed redirect to %q", r.URL.Path)
+		}
+		http.Redirect(w, r, "/checkpoint/challenge", http.StatusFound)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(Options{
+		LIAT:       "session-value",
+		JSESSIONID: "ajax:123",
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+		Interval:   time.Nanosecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = client.FetchProfile(context.Background(), "ada-example")
+	if err == nil || KindOf(err) != ErrChallenge {
+		t.Fatalf("FetchProfile() error = %v, want challenge", err)
+	}
+	if requests != 1 {
+		t.Fatalf("request count = %d, want 1", requests)
+	}
+}
+
 func TestClientRejectsOversizedResponse(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

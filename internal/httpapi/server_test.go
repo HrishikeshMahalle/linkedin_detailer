@@ -39,11 +39,10 @@ func TestProfileEndpoint(t *testing.T) {
 			Meta:          profile.Meta{FetchedAt: time.Now(), Warnings: []string{}},
 		}, nil
 	})
-	handler := testHandler(getter, "test-key", 60, 2)
+	handler := testHandler(getter, 60, 2)
 
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", strings.NewReader(`{"url":"https://linkedin.com/in/ada-example","linkedin_session":{"li_at":"session-value","jsession_id":"ajax:123"}}`))
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-API-Key", "test-key")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 
@@ -68,28 +67,12 @@ func TestProfileEndpoint(t *testing.T) {
 	}
 }
 
-func TestProfileEndpointRequiresAPIKey(t *testing.T) {
-	t.Parallel()
-	handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
-		t.Fatal("profile getter must not be called")
-		return profile.Result{}, nil
-	}), "test-key", 60, 2)
-
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", strings.NewReader(`{"url":"https://linkedin.com/in/ada-example"}`))
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-
-	if response.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401", response.Code)
-	}
-}
-
 func TestProfileEndpointRejectsInvalidBody(t *testing.T) {
 	t.Parallel()
 	handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 		t.Fatal("profile getter must not be called")
 		return profile.Result{}, nil
-	}), "", 60, 10)
+	}), 60, 10)
 
 	for _, body := range []string{
 		`{"url":"https://linkedin.com/in/ada-example","unknown":true}`,
@@ -126,7 +109,7 @@ func TestProfileEndpointMapsErrors(t *testing.T) {
 			t.Parallel()
 			handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 				return profile.Result{}, test.err
-			}), "", 60, 2)
+			}), 60, 2)
 			request := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", strings.NewReader(`{"url":"https://linkedin.com/in/ada-example","linkedin_session":{"li_at":"session-value"}}`))
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)
@@ -141,7 +124,7 @@ func TestProfileEndpointRateLimit(t *testing.T) {
 	t.Parallel()
 	handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 		return profile.Result{Meta: profile.Meta{Warnings: []string{}}}, nil
-	}), "", 1, 1)
+	}), 1, 1)
 
 	body := []byte(`{"url":"https://linkedin.com/in/ada-example","linkedin_session":{"li_at":"session-value"}}`)
 	first := httptest.NewRecorder()
@@ -163,7 +146,7 @@ func TestPublicRoutes(t *testing.T) {
 	t.Parallel()
 	handler := testHandler(profileGetFunc(func(context.Context, string, service.Session) (profile.Result, error) {
 		return profile.Result{}, errors.New("not called")
-	}), "test-key", 60, 2)
+	}), 60, 2)
 
 	for _, path := range []string{"/", "/healthz", "/openapi.yaml"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
@@ -181,10 +164,9 @@ func requestWithBody(body []byte) *http.Request {
 	return request
 }
 
-func testHandler(getter ProfileGetter, apiKey string, rpm, burst int) http.Handler {
+func testHandler(getter ProfileGetter, rpm, burst int) http.Handler {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	return NewHandler(getter, logger, Options{
-		APIKey:         apiKey,
 		RateLimitRPM:   rpm,
 		RateLimitBurst: burst,
 		RequestTimeout: time.Second,

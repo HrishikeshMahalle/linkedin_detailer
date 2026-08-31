@@ -124,6 +124,11 @@ func NewClient(opts Options) (*Client, error) {
 		}
 		httpClient.Jar = jar
 	}
+	if httpClient.CheckRedirect == nil {
+		httpClient.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
 
 	sessionURL := *baseURL
 	sessionURL.Path = "/"
@@ -226,6 +231,13 @@ func (c *Client) ensureCSRF(ctx context.Context) error {
 		c.startCooldown()
 		return &Error{Kind: ErrChallenge, StatusCode: resp.StatusCode, Message: "LinkedIn requested an account challenge"}
 	}
+	if resp.StatusCode >= http.StatusMultipleChoices && resp.StatusCode < http.StatusBadRequest {
+		if isChallengeLocation(resp.Header.Get("Location")) {
+			c.startCooldown()
+			return &Error{Kind: ErrChallenge, StatusCode: resp.StatusCode, Message: "LinkedIn redirected to an account challenge"}
+		}
+		return &Error{Kind: ErrAuthentication, StatusCode: resp.StatusCode, Message: "LinkedIn redirected the session to authentication"}
+	}
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return &Error{Kind: ErrAuthentication, StatusCode: resp.StatusCode, Message: "LinkedIn session is invalid or expired"}
 	}
@@ -294,6 +306,13 @@ func (c *Client) getJSON(ctx context.Context, endpoint *url.URL) ([]byte, error)
 }
 
 func (c *Client) classifyResponse(resp *http.Response, body []byte) error {
+	if resp.StatusCode >= http.StatusMultipleChoices && resp.StatusCode < http.StatusBadRequest {
+		if isChallengeLocation(resp.Header.Get("Location")) {
+			c.startCooldown()
+			return &Error{Kind: ErrChallenge, StatusCode: resp.StatusCode, Message: "LinkedIn redirected to an account challenge"}
+		}
+		return &Error{Kind: ErrAuthentication, StatusCode: resp.StatusCode, Message: "LinkedIn redirected the session to authentication"}
+	}
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
 		return &Error{Kind: ErrAuthentication, StatusCode: resp.StatusCode, Message: "LinkedIn session is invalid or expired"}
@@ -362,7 +381,19 @@ func isChallengeURL(value *url.URL) bool {
 		return false
 	}
 	path := strings.ToLower(value.Path)
-	return strings.Contains(path, "checkpoint") || strings.Contains(path, "challenge") || strings.Contains(path, "login")
+	return strings.Contains(path, "checkpoint") ||
+		strings.Contains(path, "challenge") ||
+		strings.Contains(path, "login") ||
+		strings.Contains(path, "authwall") ||
+		strings.Contains(path, "/uas/")
+}
+
+func isChallengeLocation(value string) bool {
+	location, err := url.Parse(value)
+	if err != nil {
+		return false
+	}
+	return isChallengeURL(location)
 }
 
 func readLimited(reader io.ReadCloser, max int64) ([]byte, error) {

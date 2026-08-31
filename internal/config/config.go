@@ -12,7 +12,6 @@ import (
 type Config struct {
 	Environment        string
 	Port               string
-	APIKey             string
 	LinkedInDecoration string
 	CacheTTL           time.Duration
 	CacheMaxEntries    int
@@ -29,7 +28,6 @@ func Load() (Config, error) {
 	cfg := Config{
 		Environment:        env("APP_ENV", "development"),
 		Port:               env("PORT", "8080"),
-		APIKey:             strings.TrimSpace(os.Getenv("APP_API_KEY")),
 		LinkedInDecoration: env("LINKEDIN_DECORATION_ID", "com.linkedin.voyager.dash.deco.identity.profile.FullProfileWithEntities-93"),
 	}
 
@@ -74,9 +72,6 @@ func (c Config) validate() error {
 	}
 	if strings.ContainsAny(c.LinkedInDecoration, "\r\n") {
 		return errors.New("LINKEDIN_DECORATION_ID contains invalid characters")
-	}
-	if c.Environment == "production" && c.APIKey == "" {
-		return errors.New("APP_API_KEY is required when APP_ENV=production")
 	}
 	if c.CacheTTL <= 0 || c.CacheMaxEntries <= 0 {
 		return errors.New("cache settings must be greater than zero")

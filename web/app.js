@@ -18,13 +18,9 @@ form.addEventListener("submit", async (event) => {
   submitButton.disabled = true;
 
   const url = document.querySelector("#profile-url").value.trim();
-  const apiKey = document.querySelector("#api-key").value;
   const liAt = document.querySelector("#li-at").value.trim();
   const jsessionId = document.querySelector("#jsession-id").value.trim();
   const headers = { "Content-Type": "application/json" };
-  if (apiKey) {
-    headers["X-API-Key"] = apiKey;
-  }
 
   try {
     const response = await fetch("/api/v1/profiles", {

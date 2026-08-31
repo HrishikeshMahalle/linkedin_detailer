@@ -17,8 +17,6 @@ paths:
   /api/v1/profiles:
     post:
       summary: Fetch a LinkedIn profile
-      security:
-        - apiKey: []
       requestBody:
         required: true
         content:
@@ -68,11 +66,6 @@ paths:
         "504":
           $ref: "#/components/responses/Error"
 components:
-  securitySchemes:
-    apiKey:
-      type: apiKey
-      in: header
-      name: X-API-Key
   responses:
     Error:
       description: Request failed

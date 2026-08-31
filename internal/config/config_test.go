@@ -18,16 +18,6 @@ func TestLoadDefaults(t *testing.T) {
 	}
 }
 
-func TestLoadRequiresProductionAPIKey(t *testing.T) {
-	clearConfigEnv(t)
-	t.Setenv("APP_ENV", "production")
-
-	_, err := Load()
-	if err == nil || !strings.Contains(err.Error(), "APP_API_KEY") {
-		t.Fatalf("Load() error = %v, want APP_API_KEY error", err)
-	}
-}
-
 func TestLoadRejectsInvalidValues(t *testing.T) {
 	clearConfigEnv(t)
 	t.Setenv("CACHE_TTL", "tomorrow")
@@ -42,7 +32,6 @@ func clearConfigEnv(t *testing.T) {
 	keys := []string{
 		"APP_ENV",
 		"PORT",
-		"APP_API_KEY",
 		"LINKEDIN_DECORATION_ID",
 		"CACHE_TTL",
 		"CACHE_MAX_ENTRIES",
